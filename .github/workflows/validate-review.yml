@@ -1,0 +1,41 @@
+name: Exact reviewed Benchmark 828 canonical gates
+on:
+  push:
+    branches: [validation/review-benchmark828-20261012]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  canonical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: f76a5d928bb5cd1035c5201c1a425c652868c8f5
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Install this clean checkout in its own environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = f76a5d928bb5cd1035c5201c1a425c652868c8f5
+          test -z "$(git status --porcelain)"
+          python -m venv .venv
+          .venv/bin/python -m pip install -e '.[dev]'
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          node --version
+          bash --version
+          .venv/bin/python --version
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: benchmark-radar normalize-catalog
+      - run: benchmark-radar classify
+      - run: benchmark-radar build-data-release
+      - run: pytest -q
